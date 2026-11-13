@@ -1,0 +1,3 @@
+self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
+self.addEventListener('push',e=>{let d={title:'VK SECURITY',body:'Security event detected'};try{d=JSON.parse(e.data.text())}catch{};e.waitUntil(self.registration.showNotification(d.title,{body:d.body,tag:d.tag,icon:'/icon.svg',badge:'/icon.svg',requireInteraction:true}));});
+self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(cs=>cs.length?cs[0].focus():clients.openWindow('/events')))});
