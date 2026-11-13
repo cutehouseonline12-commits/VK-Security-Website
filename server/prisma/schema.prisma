@@ -1,0 +1,110 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+
+enum DeviceType { PHONE LAPTOP }
+enum PairingStatus { PENDING APPROVED EXPIRED REVOKED }
+enum MotionEventType { MOTION }
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  passwordHash String
+  displayName String?
+  resetTokenHash String?
+  resetTokenExpiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  devices Device[]
+  settings UserSettings?
+  pushSubscriptions PushSubscription[]
+  recordings Recording[]
+  motionEvents MotionEvent[]
+}
+model UserSettings {
+  id String @id @default(cuid())
+  userId String @unique
+  motionSensitivity Int @default(35)
+  alertCooldownSec Int @default(30)
+  recordingDurationSec Int @default(30)
+  alarmEnabled Boolean @default(true)
+  alarmVolume Int @default(70)
+  notificationsEnabled Boolean @default(true)
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+}
+model Device {
+  id String @id @default(cuid())
+  userId String
+  name String
+  type DeviceType
+  userAgent String?
+  lastSeenAt DateTime?
+  isOnline Boolean @default(false)
+  cameraPermission Boolean @default(false)
+  motionEnabled Boolean @default(false)
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  pairingsAsCamera Pairing[] @relation("camera")
+  pairingsAsViewer Pairing[] @relation("viewer")
+  cameraSessions CameraSession[]
+  recordings Recording[]
+  motionEvents MotionEvent[]
+}
+model Pairing {
+  id String @id @default(cuid())
+  userId String
+  cameraDeviceId String
+  viewerDeviceId String?
+  codeHash String
+  qrTokenHash String
+  status PairingStatus @default(PENDING)
+  expiresAt DateTime
+  approvedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  cameraDevice Device @relation("camera", fields:[cameraDeviceId], references:[id], onDelete:Cascade)
+  viewerDevice Device? @relation("viewer", fields:[viewerDeviceId], references:[id], onDelete:SetNull)
+}
+model CameraSession {
+  id String @id @default(cuid())
+  userId String
+  deviceId String
+  sessionTokenHash String
+  startedAt DateTime @default(now())
+  endedAt DateTime?
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  device Device @relation(fields:[deviceId], references:[id], onDelete:Cascade)
+}
+model MotionEvent {
+  id String @id @default(cuid())
+  userId String
+  deviceId String
+  type MotionEventType @default(MOTION)
+  detectedAt DateTime @default(now())
+  recordingId String?
+  notificationSent Boolean @default(false)
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  device Device @relation(fields:[deviceId], references:[id], onDelete:Cascade)
+  recording Recording? @relation(fields:[recordingId], references:[id], onDelete:SetNull)
+}
+model Recording {
+  id String @id @default(cuid())
+  userId String
+  deviceId String
+  motionEventId String?
+  filePath String
+  mimeType String
+  durationSec Int?
+  fileSize Int?
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  device Device @relation(fields:[deviceId], references:[id], onDelete:Cascade)
+  motionEvents MotionEvent[]
+}
+model PushSubscription {
+  id String @id @default(cuid())
+  userId String
+  endpoint String @unique
+  p256dh String
+  auth String
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+}
